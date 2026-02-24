@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>男娘指数测试器 + 改名建议</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideInDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .animate-fadeIn { animation: fadeIn 0.8s ease-out; }
+    .animate-slideInDown { animation: slideInDown 0.8s ease-out; }
+    .animate-bounce { animation: bounce 1s infinite; }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 flex items-center justify-center p-4 font-sans">
+
+  <div class="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6">
+
+    <div class="text-center space-y-2">
+      <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+        🌸 男娘指数测试器 v2 🌸
+      </h1>
+      <p class="text-gray-600">输入昵称 → 计算分数 → 想要更高/更低？试试改名建议！</p>
+    </div>
+
+    <!-- 输入区 -->
+    <div class="space-y-4">
+      <input 
+        id="nickname" 
+        type="text" 
+        placeholder="输入你的昵称..." 
+        class="w-full px-4 py-3 text-lg text-center border-2 border-pink-300 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-300 transition"
+      />
+
+      <div class="grid grid-cols-2 gap-4">
+        <button 
+          onclick="calculate()"
+          class="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition transform hover:scale-105 active:scale-95"
+        >
+          开始测试
+        </button>
+        <button 
+          onclick="suggest()"
+          class="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition transform hover:scale-105 active:scale-95"
+        >
+          想要XX分？给建议
+        </button>
+      </div>
+    </div>
+
+    <!-- 结果区 -->
+    <div id="result" class="hidden space-y-6 pt-4 border-t border-gray-200">
+      <div class="text-center">
+        <div id="emoji" class="text-7xl mb-2 animate-bounce"></div>
+        <div id="score" class="text-5xl font-bold text-purple-700"></div>
+        <div id="grade" class="text-2xl font-semibold text-pink-600 mt-1"></div>
+      </div>
+      <p id="desc" class="text-center text-gray-700 px-4"></p>
+      <div class="w-full bg-pink-100 rounded-full h-3 overflow-hidden">
+        <div id="progress" class="bg-gradient-to-r from-pink-500 to-purple-600 h-full transition-all duration-1000" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- 建议区 -->
+    <div id="suggestion-area" class="hidden space-y-4 pt-6 border-t border-gray-200">
+      <h3 class="text-xl font-bold text-center text-purple-700">改名建议（目标分数： <span id="target-score-display">?</span>）</h3>
+      <div id="suggestions" class="space-y-3 text-sm"></div>
+    </div>
+
+  </div>
+
+  <script>
+    // 原版哈希算法（完全一致）
+    function calculateIndex(name) {
+      if (!name?.trim()) return 0;
+      let t = 0;
+      const cleaned = name.trim();
+      for (let char of cleaned) {
+        const r = char.charCodeAt(0);
+        let temp = (t * 31) + r;
+        temp = temp & 0xFFFFFFFF;
+        if (temp & 0x80000000) temp -= 0x100000000;
+        t = temp;
+      }
+      return Math.abs(t) % 101;
+    }
+
+    // 分数 → 等级映射（和原版一致）
+    function getGradeInfo(score) {
+      if (score >= 90) return { grade: "SSS级男娘", desc: "恭喜你！你已经达到了男娘的最高境界，萌力爆表！💖", emoji: "🌸" };
+      if (score >= 75) return { grade: "SS级男娘",  desc: "非常优秀！你的男娘潜力非常强，继续保持！✨", emoji: "🎀" };
+      if (score >= 60) return { grade: "S级男娘",   desc: "表现出色！你已经具备了相当的男娘特质！🌟", emoji: "🦄" };
+      if (score >= 45) return { grade: "A级男娘",   desc: "还不错！你有一定的男娘潜质，加油！💪", emoji: "🌈" };
+      if (score >= 30) return { grade: "B级男娘",   desc: "有进步空间！继续努力开发你的男娘属性！🎯", emoji: "⭐" };
+      if (score >= 15) return { grade: "C级男娘",   desc: "刚刚起步！你的男娘之路才刚刚开始！🌱", emoji: "🍀" };
+      return { grade: "D级男娘", desc: "稀有属性！你拥有独特的刚强气质！💪", emoji: "⚔️" };
+    }
+
+    // 显示结果
+    function showResult(name) {
+      const score = calculateIndex(name);
+      const info = getGradeInfo(score);
+
+      document.getElementById('emoji').textContent = info.emoji;
+      document.getElementById('score').textContent = score + " 分";
+      document.getElementById('grade').textContent = info.grade;
+      document.getElementById('desc').textContent = info.desc;
+      document.getElementById('progress').style.width = score + '%';
+
+      document.getElementById('result').classList.remove('hidden');
+    }
+
+    // 计算按钮
+    function calculate() {
+      const name = document.getElementById('nickname').value;
+      if (!name.trim()) {
+        alert("请输入昵称哦~");
+        return;
+      }
+      showResult(name);
+      document.getElementById('suggestion-area').classList.add('hidden');
+    }
+
+    // 建议按钮
+    function suggest() {
+      const name = document.getElementById('nickname').value.trim();
+      if (!name) {
+        alert("先输入现在的昵称吧！");
+        return;
+      }
+
+      const target = prompt("你想要的分数是？（0-100）", "90");
+      if (target === null) return;
+
+      const targetNum = parseInt(target);
+      if (isNaN(targetNum) || targetNum < 0 || targetNum > 100) {
+        alert("请输入0~100之间的数字！");
+        return;
+      }
+
+      document.getElementById('target-score-display').textContent = targetNum;
+
+      const suggestions = generateSuggestions(name, targetNum);
+
+      const container = document.getElementById('suggestions');
+      container.innerHTML = '';
+
+      if (suggestions.length === 0) {
+        container.innerHTML = '<p class="text-center text-gray-500">暂未找到合适的简单修改方案…<br>可以试试更极端的目标分数或手动尝试添加符号/emoji哦~</p>';
+      } else {
+        suggestions.forEach(s => {
+          const div = document.createElement('div');
+          div.className = 'bg-purple-50 p-3 rounded-lg flex justify-between items-center';
+          div.innerHTML = `
+            <div>
+              <span class="font-medium">${s.name}</span>
+              <span class="text-purple-600 ml-2">(${s.score}分)</span>
+            </div>
+            <button onclick="applySuggestion('${s.name}')" class="text-sm bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700">
+              使用这个
+            </button>
+          `;
+          container.appendChild(div);
+        });
+      }
+
+      document.getElementById('suggestion-area').classList.remove('hidden');
+    }
+
+    // 应用建议
+    function applySuggestion(newName) {
+      document.getElementById('nickname').value = newName;
+      showResult(newName);
+      document.getElementById('suggestion-area').classList.add('hidden');
+    }
+
+    // 生成建议（简单暴力搜索）
+    function generateSuggestions(baseName, target) {
+      const suggestions = [];
+      const chars = "abcdefghijklmnopqrstuvwxyz0123456789!@#*☆★♡♥✨🌸🎀🦄🌈⭐🍀⚔️💖";
+
+      // 1. 加单个字符后缀
+      for (let c of chars) {
+        const newName = baseName + c;
+        if (calculateIndex(newName) === target) {
+          suggestions.push({name: newName, score: target});
+          if (suggestions.length >= 4) return suggestions;
+        }
+      }
+
+      // 2. 加单个字符前缀
+      for (let c of chars) {
+        const newName = c + baseName;
+        if (calculateIndex(newName) === target) {
+          suggestions.push({name: newName, score: target});
+          if (suggestions.length >= 4) return suggestions;
+        }
+      }
+
+      // 3. 替换最后一个字符
+      if (baseName.length > 0) {
+        const prefix = baseName.slice(0, -1);
+        for (let c of chars) {
+          const newName = prefix + c;
+          if (calculateIndex(newName) === target) {
+            suggestions.push({name: newName, score: target});
+            if (suggestions.length >= 4) return suggestions;
+          }
+        }
+      }
+
+      // 4. 加两个字符后缀（有限组合）
+      for (let c1 of chars.slice(0, 15)) {
+        for (let c2 of chars.slice(0, 15)) {
+          const newName = baseName + c1 + c2;
+          if (calculateIndex(newName) === target) {
+            suggestions.push({name: newName, score: target});
+            if (suggestions.length >= 4) return suggestions;
+          }
+        }
+      }
+
+      return suggestions;
+    }
+  </script>
+</body>
+</html>
