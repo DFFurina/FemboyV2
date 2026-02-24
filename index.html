@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>男娘指数测试器 + 改名建议</title>
+  <title>男娘指数测试器 + 改名建议（增强版）</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -22,7 +22,7 @@
       <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
         🌸 男娘指数测试器 v2 🌸
       </h1>
-      <p class="text-gray-600">输入昵称 → 计算分数 → 想要更高/更低？试试改名建议！</p>
+      <p class="text-gray-600">输入昵称 → 计算分数 → 想要更高/更低？试试更多改名方案！</p>
     </div>
 
     <!-- 输入区 -->
@@ -66,39 +66,48 @@
     <!-- 建议区 -->
     <div id="suggestion-area" class="hidden space-y-4 pt-6 border-t border-gray-200">
       <h3 class="text-xl font-bold text-center text-purple-700">改名建议（目标分数： <span id="target-score-display">?</span>）</h3>
-      <div id="suggestions" class="space-y-3 text-sm"></div>
+      <div id="suggestions" class="space-y-3 text-sm max-h-80 overflow-y-auto"></div>
     </div>
 
   </div>
 
   <script>
-    // 原版哈希算法（完全一致）
+    // ────────────────────────────────────────────────
+    //  核心哈希函数（与 Python 版本完全一致的 32 位有符号模拟）
+    // ────────────────────────────────────────────────
     function calculateIndex(name) {
-      if (!name?.trim()) return 0;
+      if (!name || !name.trim()) return 0;
+
       let t = 0;
       const cleaned = name.trim();
+
       for (let char of cleaned) {
-        const r = char.charCodeAt(0);
+        const r = char.charCodeAt(0) & 0xFFFF;  // 限制为 16 位（更接近真实 unicode 行为）
         let temp = (t * 31) + r;
-        temp = temp & 0xFFFFFFFF;
-        if (temp & 0x80000000) temp -= 0x100000000;
+
+        // 模拟 32 位整数溢出
+        temp = temp | 0;                   // 转为 32 位有符号整数（JS trick）
+        // 或者更显式写法（两者等价）：
+        // temp = temp & 0xFFFFFFFF;
+        // if (temp & 0x80000000) temp -= 0x100000000;
+
         t = temp;
       }
+
       return Math.abs(t) % 101;
     }
 
-    // 分数 → 等级映射（和原版一致）
+    // 分数 → 等级（不变）
     function getGradeInfo(score) {
-      if (score >= 90) return { grade: "SSS级男娘", desc: "恭喜你！你已经达到了男娘的最高境界，萌力爆表！💖", emoji: "🌸" };
-      if (score >= 75) return { grade: "SS级男娘",  desc: "非常优秀！你的男娘潜力非常强，继续保持！✨", emoji: "🎀" };
-      if (score >= 60) return { grade: "S级男娘",   desc: "表现出色！你已经具备了相当的男娘特质！🌟", emoji: "🦄" };
-      if (score >= 45) return { grade: "A级男娘",   desc: "还不错！你有一定的男娘潜质，加油！💪", emoji: "🌈" };
-      if (score >= 30) return { grade: "B级男娘",   desc: "有进步空间！继续努力开发你的男娘属性！🎯", emoji: "⭐" };
-      if (score >= 15) return { grade: "C级男娘",   desc: "刚刚起步！你的男娘之路才刚刚开始！🌱", emoji: "🍀" };
-      return { grade: "D级男娘", desc: "稀有属性！你拥有独特的刚强气质！💪", emoji: "⚔️" };
+      if (score >= 90) return { grade: "SSS级男娘", desc: "萌力爆表！已达男娘巅峰境界💖", emoji: "🌸" };
+      if (score >= 75) return { grade: "SS级男娘",  desc: "非常优秀！男娘潜力极强✨", emoji: "🎀" };
+      if (score >= 60) return { grade: "S级男娘",   desc: "相当有男娘特质哦～🌟", emoji: "🦄" };
+      if (score >= 45) return { grade: "A级男娘",   desc: "有一定男娘潜质，继续加油！💪", emoji: "🌈" };
+      if (score >= 30) return { grade: "B级男娘",   desc: "还有提升空间！多尝试可爱元素🎯", emoji: "⭐" };
+      if (score >= 15) return { grade: "C级男娘",   desc: "男娘之路刚刚起步～🌱", emoji: "🍀" };
+      return { grade: "D级男娘", desc: "硬核属性max！纯爷们の证明⚔️", emoji: "⚔️" };
     }
 
-    // 显示结果
     function showResult(name) {
       const score = calculateIndex(name);
       const info = getGradeInfo(score);
@@ -112,117 +121,138 @@
       document.getElementById('result').classList.remove('hidden');
     }
 
-    // 计算按钮
     function calculate() {
       const name = document.getElementById('nickname').value;
       if (!name.trim()) {
-        alert("请输入昵称哦~");
+        alert("请输入昵称哦～");
         return;
       }
       showResult(name);
       document.getElementById('suggestion-area').classList.add('hidden');
     }
 
-    // 建议按钮
+    // ────────────────────────────────────────────────
+    //          增强版改名建议生成器
+    // ────────────────────────────────────────────────
+    function generateSuggestions(baseName, target) {
+      const suggestions = [];
+      const MAX_SUGGEST = 8;
+
+      // 常用可爱后缀 / 前缀 / 符号
+      const suffixes = ["酱","呀","呢","喵","呜","～","!","!!","♡","♥","☆","★","✨","🌸","🎀","🦄","っ","っ！","くん","ちゃん"];
+      const prefixes  = ["小","超","最","超绝","究极","迷你","软","甜","软萌","超可爱","只","只只","一只","超想","想要","超爱"];
+      const symbols   = ["!","@","#","$","%","^","&","*","(",")","_","+","=","-","~","☆","★","♡","♥","✨","🌸","🎀","🦄","🌟","💕","💖"];
+
+      const add = (newName) => {
+        if (suggestions.length >= MAX_SUGGEST) return true;
+        if (calculateIndex(newName) === target && newName !== baseName) {
+          suggestions.push(newName);
+          return suggestions.length >= MAX_SUGGEST;
+        }
+        return false;
+      };
+
+      // 策略1：直接加/换可爱后缀（最常见、最有效）
+      for (let s of suffixes) {
+        if (add(baseName + s)) return suggestions;
+        if (add(baseName + " " + s)) return suggestions;
+      }
+
+      // 策略2：加前缀（小可爱、超甜等）
+      for (let p of prefixes) {
+        if (add(p + baseName)) return suggestions;
+        if (add(p + " " + baseName)) return suggestions;
+      }
+
+      // 策略3：单个符号前/后/两边
+      for (let s of symbols) {
+        if (add(baseName + s)) return suggestions;
+        if (add(s + baseName)) return suggestions;
+        if (add(s + baseName + s)) return suggestions;
+      }
+
+      // 策略4：替换最后一个字为可爱符号或常用字
+      if (baseName.length > 1) {
+        const prefix = baseName.slice(0, -1);
+        for (let s of [...suffixes, ...symbols.slice(0,20)]) {
+          if (add(prefix + s)) return suggestions;
+        }
+      }
+
+      // 策略5：加两个符号/后缀组合（有限搜索）
+      const combo = [...symbols.slice(0,18), ...suffixes.slice(0,12)];
+      for (let a of combo) {
+        for (let b of combo) {
+          if (add(baseName + a + b)) return suggestions;
+          if (add(baseName + a + " " + b)) return suggestions;
+        }
+      }
+
+      // 策略6：删除最后一个字符（有时很有效）
+      if (baseName.length > 2) {
+        if (add(baseName.slice(0,-1))) return suggestions;
+        if (add(baseName.slice(0,-2))) return suggestions;
+      }
+
+      return suggestions;
+    }
+
     function suggest() {
       const name = document.getElementById('nickname').value.trim();
       if (!name) {
-        alert("先输入现在的昵称吧！");
+        alert("先输入现在的昵称吧～");
         return;
       }
 
-      const target = prompt("你想要的分数是？（0-100）", "90");
-      if (target === null) return;
+      const targetStr = prompt("想要的分数是？（0-100）", "88");
+      if (targetStr === null) return;
 
-      const targetNum = parseInt(target);
-      if (isNaN(targetNum) || targetNum < 0 || targetNum > 100) {
-        alert("请输入0~100之间的数字！");
+      const target = parseInt(targetStr);
+      if (isNaN(target) || target < 0 || target > 100) {
+        alert("请输入 0～100 的数字！");
         return;
       }
 
-      document.getElementById('target-score-display').textContent = targetNum;
+      document.getElementById('target-score-display').textContent = target;
 
-      const suggestions = generateSuggestions(name, targetNum);
-
+      const current = calculateIndex(name);
       const container = document.getElementById('suggestions');
       container.innerHTML = '';
 
-      if (suggestions.length === 0) {
-        container.innerHTML = '<p class="text-center text-gray-500">暂未找到合适的简单修改方案…<br>可以试试更极端的目标分数或手动尝试添加符号/emoji哦~</p>';
+      if (current === target) {
+        container.innerHTML = `<p class="text-center text-green-600 font-medium">当前昵称已经是 ${target} 分啦！不需要改哦～💕</p>`;
       } else {
-        suggestions.forEach(s => {
-          const div = document.createElement('div');
-          div.className = 'bg-purple-50 p-3 rounded-lg flex justify-between items-center';
-          div.innerHTML = `
-            <div>
-              <span class="font-medium">${s.name}</span>
-              <span class="text-purple-600 ml-2">(${s.score}分)</span>
-            </div>
-            <button onclick="applySuggestion('${s.name}')" class="text-sm bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700">
-              使用这个
-            </button>
-          `;
-          container.appendChild(div);
-        });
+        const sugs = generateSuggestions(name, target);
+
+        if (sugs.length === 0) {
+          container.innerHTML = `<p class="text-center text-gray-500">这次没找到简单好用的改法…<br>可以试试其他目标分数，或者手动多加几个♡✨～</p>`;
+        } else {
+          sugs.forEach(n => {
+            const score = calculateIndex(n);
+            const div = document.createElement('div');
+            div.className = 'bg-purple-50 p-3 rounded-lg flex justify-between items-center';
+            div.innerHTML = `
+              <div class="truncate flex-1">
+                <span class="font-medium">${n}</span>
+                <span class="text-purple-600 ml-2">(${score}分)</span>
+              </div>
+              <button onclick="applySuggestion('${n.replace(/'/g,"\\'")}')" 
+                      class="text-sm bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 shrink-0">
+                用这个
+              </button>
+            `;
+            container.appendChild(div);
+          });
+        }
       }
 
       document.getElementById('suggestion-area').classList.remove('hidden');
     }
 
-    // 应用建议
     function applySuggestion(newName) {
       document.getElementById('nickname').value = newName;
       showResult(newName);
       document.getElementById('suggestion-area').classList.add('hidden');
-    }
-
-    // 生成建议（简单暴力搜索）
-    function generateSuggestions(baseName, target) {
-      const suggestions = [];
-      const chars = "abcdefghijklmnopqrstuvwxyz0123456789!@#*☆★♡♥✨🌸🎀🦄🌈⭐🍀⚔️💖";
-
-      // 1. 加单个字符后缀
-      for (let c of chars) {
-        const newName = baseName + c;
-        if (calculateIndex(newName) === target) {
-          suggestions.push({name: newName, score: target});
-          if (suggestions.length >= 4) return suggestions;
-        }
-      }
-
-      // 2. 加单个字符前缀
-      for (let c of chars) {
-        const newName = c + baseName;
-        if (calculateIndex(newName) === target) {
-          suggestions.push({name: newName, score: target});
-          if (suggestions.length >= 4) return suggestions;
-        }
-      }
-
-      // 3. 替换最后一个字符
-      if (baseName.length > 0) {
-        const prefix = baseName.slice(0, -1);
-        for (let c of chars) {
-          const newName = prefix + c;
-          if (calculateIndex(newName) === target) {
-            suggestions.push({name: newName, score: target});
-            if (suggestions.length >= 4) return suggestions;
-          }
-        }
-      }
-
-      // 4. 加两个字符后缀（有限组合）
-      for (let c1 of chars.slice(0, 15)) {
-        for (let c2 of chars.slice(0, 15)) {
-          const newName = baseName + c1 + c2;
-          if (calculateIndex(newName) === target) {
-            suggestions.push({name: newName, score: target});
-            if (suggestions.length >= 4) return suggestions;
-          }
-        }
-      }
-
-      return suggestions;
     }
   </script>
 </body>
